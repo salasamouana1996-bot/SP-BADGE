@@ -1,8 +1,395 @@
-ALTER TABLE public.visiteurs
-ADD COLUMN IF NOT EXISTS supprime BOOLEAN NOT NULL DEFAULT FALSE;
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SP-BADGE - Service Badge</title>
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#F2EBE1;color:#3E2314}
+.top{background:linear-gradient(135deg,#3E2314,#7A5437);color:#fff;padding:14px 18px;display:flex;gap:12px;align-items:center;position:sticky;top:0;z-index:20;box-shadow:0 4px 20px rgba(0,0,0,.25);border-bottom:3px solid #D4AF37}
+.top b{font-size:20px;letter-spacing:1px}.top span{font-size:12px;opacity:.9}
+.wrap{max-width:1000px;margin:18px auto;padding:0 14px 40px}
+.card{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 6px 20px rgba(0,0,0,.10);border:1px solid rgba(212,175,55,.5)}
+.nav{display:flex;gap:6px;margin-bottom:16px;background:#fff;border-radius:16px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);border:1px solid rgba(212,175,55,.5);position:sticky;top:72px;z-index:15;overflow-x:auto}
+.nav a{color:#4A2C15;padding:11px 14px;border-radius:12px;text-decoration:none;font-weight:600;font-size:13px;white-space:nowrap;flex-shrink:0}
+.nav a:hover{background:rgba(212,175,55,.20)}.nav a.active{background:linear-gradient(135deg,#3E2314,#7A5437);color:#fff}
+input,select,textarea{width:100%;padding:12px;border:1px solid #D9C9B0;border-radius:10px;margin-bottom:10px;font-size:14px;background:#FFFBF2}
+label.small{display:block;font-size:12px;color:#7A4A2B;margin:2px 0 4px}
+button{padding:12px 18px;border:none;border-radius:12px;background:linear-gradient(135deg,#3E2314,#7A5437);color:#fff;font-weight:700;cursor:pointer;font-size:14px}
+button.green{background:linear-gradient(135deg,#1B7A3D,#25A85A)}button.red{background:linear-gradient(135deg,#B91C1C,#E05252)}button.gold{background:linear-gradient(135deg,#F0D060,#D4AF37);color:#3E2314}button.light{background:#F2EBE1;color:#3E2314}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{background:#FFFBF2;border:1px solid #E8D9C0;border-radius:14px;padding:14px;text-align:center}.stat b{display:block;font-size:26px}
+.small{font-size:12px;color:#7A4A2B}.badge{display:inline-block;background:linear-gradient(135deg,#F0D060,#D4AF37);color:#3E2314;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.badge-in{background:#D1F5DB;color:#0B5A26}.badge-out{background:#F5D5D5;color:#5A0000}
+table{width:100%;border-collapse:collapse;font-size:13px}th{background:#3E2314;color:#fff;padding:10px;text-align:left}td{padding:10px;border-bottom:1px solid #EFE3D0}
+.hidden{display:none}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:160px}
+.avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;border:2px solid #D4AF37;background:#fff;display:block}.avatar-wrap{display:flex;align-items:center;gap:9px}.avatar-action{font-size:11px;padding:7px 10px;border-radius:9px}
+@media(max-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+.notice{padding:11px;border-radius:10px;background:#fff5d9;color:#654500;font-size:12px;margin:10px 0}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.toolbar button{flex:1;min-width:145px}.muted{color:#7A4A2B;font-size:12px}.qrbox{display:flex;justify-content:center;padding:12px;background:#fff;border:1px solid #E8D9C0;border-radius:12px;margin:10px auto;max-width:220px}
+@media(max-width:640px){table{display:block;overflow-x:auto;white-space:nowrap}}
+</style>
+</head>
+<body>
+<div id="loginPage"><div class="wrap"><div class="card" style="max-width:440px;margin:40px auto;text-align:center">
+<div style="font-size:64px">🪪</div><h2>SP-BADGE</h2>
+<p class="small">Service Badge — Contrôle & Enregistrement des visiteurs<br>Commandement en Chef de la Sécurité Pénitentiaire</p>
+<p id="loginMsg" style="color:#9B1C1C;font-weight:bold"></p>
+<label class="small" style="text-align:left">Adresse e-mail</label>
+<input id="email" type="email" autocomplete="username" placeholder="Adresse e-mail" required>
+<label class="small" style="text-align:left">Mot de passe</label>
+<input id="mdp" type="password" autocomplete="current-password" placeholder="Mot de passe" required>
+<button id="loginBtn" style="width:100%" onclick="login()">Se connecter à SP-BADGE →</button>
+<button id="showSignupBtn" class="gold" style="width:100%;margin-top:10px" onclick="afficherInscription(true)">Créer mon compte agent</button>
+<div id="signupPanel" class="hidden" style="text-align:left;margin-top:18px;border-top:1px solid #E8D9C0;padding-top:16px">
+ <h3 style="text-align:center">Créer un compte agent</h3>
+ <label class="small">Nom et prénom</label>
+ <input id="signupName" autocomplete="name" placeholder="Nom et prénom">
+ <label class="small">Adresse e-mail</label>
+ <input id="signupEmail" type="email" autocomplete="email" placeholder="Adresse e-mail">
+ <label class="small">Créer un mot de passe (8 caractères minimum)</label>
+ <input id="signupPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Mot de passe personnel">
+ <label class="small">Confirmer le mot de passe</label>
+ <input id="signupPassword2" type="password" autocomplete="new-password" minlength="8" placeholder="Confirmer le mot de passe">
+ <button id="signupBtn" class="green" style="width:100%" onclick="inscriptionAgent()">Créer mon compte</button>
+ <button class="light" style="width:100%;margin-top:8px" onclick="afficherInscription(false)">Retour à la connexion</button>
+</div>
+<div class="notice">Chaque agent crée son propre compte. Le rôle Agent est attribué automatiquement par Supabase. Le compte administrateur reste réservé.</div>
+<p class="small">« Duralex Sed Lex » — La loi est dure, mais c'est la loi.</p></div></div></div>
 
-ALTER TABLE public.visiteurs
-ADD COLUMN IF NOT EXISTS supprime_le TIMESTAMPTZ;
+<div id="appPage" class="hidden">
+<div class="top"><div style="font-size:30px">🪪</div><div><b>SP-BADGE</b><br><span>Service Badge • Commandement en Chef</span></div><div class="avatar-wrap" style="margin-left:auto">
+<img id="userAvatar" class="avatar" alt="Photo de profil" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42' viewBox='0 0 42 42'%3E%3Ccircle cx='21' cy='21' r='21' fill='%23ffffff'/%3E%3Ctext x='21' y='28' font-size='22' text-anchor='middle'%3E%F0%9F%91%A4%3C/text%3E%3C/svg%3E">
+<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+ <div id="userLabel" style="font-size:12px;font-weight:700;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);padding:6px 10px;border-radius:20px"></div>
+ <label for="avatarFile" class="avatar-action" style="cursor:pointer;background:#F0D060;color:#3E2314;font-weight:700">📷 Ajouter / modifier la photo</label>
+ <input id="avatarFile" type="file" accept="image/*" class="hidden" onchange="televerserPhotoProfil(event)">
+</div>
+</div></div>
+<div class="wrap"><div class="nav">
+<a href="#" data-page="dashboard" onclick="showPage('dashboard');return false">🏠 Dashboard</a>
+<a href="#" data-page="enregistrer" onclick="showPage('enregistrer');return false">➕ Enregistrer</a>
+<a href="#" data-page="presents" onclick="showPage('presents');return false">🟢 Présents</a>
+<a href="#" data-page="historique" onclick="showPage('historique');return false">📋 Historique</a>
+<a href="#" data-page="corbeille" class="hidden" onclick="showPage('corbeille');return false">🗑️ Corbeille</a>
+<a href="#" data-page="badges" onclick="showPage('badges');return false">🪪 Badges</a>
+ <a href="#" data-page="operations" onclick="showPage('operations');return false">🧾 Opérations</a>
+ <a href="#" data-page="administration" class="hidden" onclick="showPage('administration');return false">⚙️ Administration</a>
+<a href="#" data-page="imprimante" onclick="showPage('imprimante');return false">🖨️ Imprimer</a>
+<a href="#" onclick="logout();return false" style="color:#9B1C1C;background:rgba(155,28,28,.08);margin-left:auto">🚪 Déconnexion</a>
+</div><div id="syncStatus" class="small">Connexion à la base de données…</div><div id="content"></div></div></div>
 
-ALTER TABLE public.visiteurs
-ADD COLUMN IF NOT EXISTS supprime_par UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://tpyedceggswsfdqvdfre.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qdikY9OsD93Ibg2cTXy-0Q_3vYbc311';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let visiteurs = [];
+let corbeille = [];
+let roleCourant = '';
+let utilisateurCourant = null;
+let canalVisiteurs = null;
+const CLE_OPERATIONS='spbadge_operations_v1';
+const CLE_SNAPSHOT='spbadge_derniere_sauvegarde_v1';
+let operationsLocales=JSON.parse(localStorage.getItem(CLE_OPERATIONS)||'[]');
+let IMPRIMANTE = JSON.parse(localStorage.getItem('spbadge_imprimante')||'null') || {nom:'',format:'A4',entete:'Commandement en Chef de la Sécurité Pénitentiaire'};
+
+function enregistrerOperation(action,details=''){
+ const entree={id:Date.now()+'_'+Math.random().toString(36).slice(2,7),date:new Date().toISOString(),action,details,acteur:utilisateurCourant?.email||'Session locale'};
+ operationsLocales.unshift(entree);operationsLocales=operationsLocales.slice(0,500);
+ try{localStorage.setItem(CLE_OPERATIONS,JSON.stringify(operationsLocales));}catch(e){console.warn('Journal local indisponible',e);}
+}
+function sauvegardeAutomatiqueLocale(){
+ try{localStorage.setItem(CLE_SNAPSHOT,JSON.stringify({date:new Date().toISOString(),visiteurs,corbeille}));}catch(e){console.warn('Sauvegarde locale impossible',e);}
+}
+function notifier(titre,message){
+ if(!('Notification' in window))return;
+ if(Notification.permission==='granted'){try{new Notification(titre,{body:message,icon:'https://cdn-icons-png.flaticon.com/512/1827/1827370.png'});}catch(e){console.warn(e);}}
+}
+async function activerNotifications(){
+ if(!('Notification' in window)){alert('Les notifications ne sont pas prises en charge par ce navigateur.');return;}
+ const permission=await Notification.requestPermission();
+ alert(permission==='granted'?'Notifications activées sur cet appareil.':'Autorisation des notifications non accordée.');
+}
+function telechargerFichier(nom,contenu,type){
+ const blob=new Blob([contenu],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=nom;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+function exporterExcel(){
+ const lignes=[['Badge','Nom','Prénom','Pièce','N° pièce','Téléphone','Motif','Personne rencontrée','Service','Date','Heure entrée','Heure sortie','Statut','Agent','Observation'],...visiteurs.map(v=>[v.badge,v.nom,v.prenom,v.piece,v.numeroPiece,v.telephone,v.motif,v.rencontre,v.service,v.date,v.heureEntree,v.heureSortie,v.statut,v.agent,v.note])];
+ const csv='\ufeff'+lignes.map(l=>l.map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');
+ telechargerFichier('SP-BADGE_export_'+new Date().toISOString().slice(0,10)+'.csv',csv,'text/csv;charset=utf-8');enregistrerOperation('Export Excel/CSV',visiteurs.length+' fiches exportées');
+}
+function exporterSauvegarde(){
+ const paquet={application:'SP-BADGE',version:2,date_export:new Date().toISOString(),visiteurs,corbeille,operations:operationsLocales};
+ telechargerFichier('SP-BADGE_sauvegarde_'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(paquet,null,2),'application/json');
+ enregistrerOperation('Sauvegarde exportée',visiteurs.length+' visiteurs et '+corbeille.length+' éléments en corbeille');
+}
+function afficherOperations(){
+ const cible=document.getElementById('listeOperations');if(!cible)return;
+ const q=(document.getElementById('rechercheOperation')?.value||'').toLowerCase();
+ const liste=operationsLocales.filter(o=>(o.action+' '+o.details+' '+o.acteur).toLowerCase().includes(q));
+ cible.innerHTML=liste.length?liste.map(o=>`<div style="padding:10px;border-bottom:1px solid #EFE3D0"><b>${echapper(o.action)}</b><div class="muted">${new Date(o.date).toLocaleString('fr-FR')} • ${echapper(o.acteur)}</div><div>${echapper(o.details)}</div></div>`).join(''):'<p class="small">Aucune opération enregistrée sur cet appareil.</p>';
+}
+function afficherQrVisiteur(idx){
+ const v=visiteurs[idx];if(!v)return;const donnees=JSON.stringify({application:'SP-BADGE',badge:v.badge,nom:v.nom,prenom:v.prenom,date:v.date,statut:v.statut});
+ const w=window.open('','_blank');if(!w){alert('Autorise les fenêtres pop-up pour afficher le QR Code.');return;}
+ w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>QR Badge ${echapper(v.badge)}</title><meta name="viewport" content="width=device-width,initial-scale=1"><script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script><style>body{font-family:Arial;text-align:center;padding:24px;color:#3E2314}.qr{display:flex;justify-content:center;margin:24px}</style></head><body><h2>SP-BADGE</h2><h3>BADGE N° ${echapper(v.badge)}</h3><p>${echapper(v.prenom)} ${echapper(v.nom)}</p><div class="qr" id="qr"></div><p>Présenter ce code pour identifier la fiche du badge.</p><script>new QRCode(document.getElementById('qr'),{text:${JSON.stringify(donnees)},width:220,height:220});<\/script></body></html>`);w.document.close();
+}
+function horodatage(){const n=new Date();return{date:n.toLocaleDateString('fr-FR'),heure:n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})};}
+function aujourd(){return new Date().toLocaleDateString('fr-FR');}
+function heureLocale(value){return value?new Date(value).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';}
+function dateLocale(value){return value?new Date(value).toLocaleDateString('fr-FR'):'';}
+function echapper(valeur){
+ const s=String(valeur??'');
+ return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function convertirVisiteur(v){
+ const propre=Object.fromEntries(Object.entries(v).map(([k,val])=>[k,typeof val==='string'?echapper(val):val]));
+ return {...propre,numeroPiece:echapper(v.numero_piece||''),rencontre:echapper(v.rencontre||v.personne_visitee||''),date:dateLocale(v.date_visite||v.created_at),heureEntree:echapper(v.heure_entree||heureLocale(v.date_visite||v.created_at)),heureSortie:heureLocale(v.heure_sortie),badgeRendu:echapper(v.badge_rendu||'')};
+}
+
+async function chargerVisiteurs(){
+ const {data,error}=await sb.from('visiteurs').select('*').order('created_at',{ascending:false});
+ if(error){document.getElementById('syncStatus').textContent='Erreur Supabase : '+error.message;throw error;}
+ const toutes=(data||[]).map(convertirVisiteur);
+ visiteurs=toutes.filter(v=>v.supprime!==true);
+ corbeille=toutes.filter(v=>v.supprime===true);
+ document.getElementById('syncStatus').textContent='☁️ Données synchronisées avec Supabase';
+ sauvegardeAutomatiqueLocale();
+}
+function synchroniserVisiteurs(){
+ if(canalVisiteurs)return;
+ canalVisiteurs=sb.channel('spbadge-visiteurs')
+ .on('postgres_changes',{event:'*',schema:'public',table:'visiteurs'},async()=>{
+   const page=document.querySelector('.nav a.active')?.dataset.page||'dashboard';
+   try{await chargerVisiteurs();showPage(page);}catch(e){console.error(e);}
+ }).subscribe((status)=>{if(status==='SUBSCRIBED')document.getElementById('syncStatus').textContent='🟢 Synchronisation en temps réel active';});
+}
+function nomRole(role){
+ return ({admin:'Administrateur',agent:'Agent du Service Badge'})[role]||'Rôle inconnu';
+}
+const AVATAR_BUCKET = 'agent-photos';
+function cheminPhotoProfil(){
+ return utilisateurCourant?.id ? `${utilisateurCourant.id}/avatar` : null;
+}
+async function chargerPhotoProfil(){
+ const img=document.getElementById('userAvatar');
+ const chemin=cheminPhotoProfil();
+ if(!img||!chemin)return;
+ const {data,error}=await sb.storage.from(AVATAR_BUCKET).createSignedUrl(chemin,3600);
+ if(!error&&data?.signedUrl)img.src=data.signedUrl;
+}
+async function televerserPhotoProfil(event){
+ const fichier=event.target.files?.[0];
+ event.target.value='';
+ if(!fichier)return;
+ if(!fichier.type.startsWith('image/')){alert('Choisis un fichier image.');return;}
+ if(fichier.size>3*1024*1024){alert('La photo doit faire 3 Mo maximum.');return;}
+ if(!utilisateurCourant?.id){alert('Reconnecte-toi avant de modifier ta photo.');return;}
+ const etiquette=document.querySelector('label[for="avatarFile"]');
+ const ancienTexte=etiquette.textContent;
+ etiquette.textContent='Téléversement…';
+ etiquette.style.pointerEvents='none';
+ try{
+  const chemin=cheminPhotoProfil();
+  const {error}=await sb.storage.from(AVATAR_BUCKET).upload(chemin,fichier,{
+   upsert:true,
+   contentType:fichier.type,
+   cacheControl:'3600'
+  });
+  if(error)throw error;
+  await chargerPhotoProfil();
+  alert('Photo de profil mise à jour.');
+ }catch(e){
+  alert('Impossible d’enregistrer la photo : '+(e.message||'Vérifie la configuration du stockage Supabase.'));
+ }finally{
+  etiquette.textContent=ancienTexte;
+  etiquette.style.pointerEvents='';
+ }
+}
+async function ouvrirSession(session){
+ if(!session?.user){throw new Error('Aucune session active.');}
+ utilisateurCourant=session.user;
+ const {data:profil,error:erreurProfil}=await sb.from('profiles').select('role').eq('id',session.user.id).single();
+ if(erreurProfil||!profil){await sb.auth.signOut();throw new Error("Profil introuvable. Vérifie la configuration SQL des profils et contacte l'administrateur.");}
+ if(!['admin','agent'].includes(profil.role)){await sb.auth.signOut();throw new Error('Rôle non autorisé.');}
+ roleCourant=profil.role;
+ document.querySelector('[data-page="corbeille"]').classList.toggle('hidden',roleCourant!=='admin');
+  document.querySelector('[data-page="administration"]').classList.toggle('hidden',roleCourant!=='admin');
+ await chargerVisiteurs();
+ document.getElementById('loginPage').classList.add('hidden');
+ document.getElementById('appPage').classList.remove('hidden');
+ document.getElementById('userLabel').innerText=nomRole(roleCourant)+' • '+(session.user.email||'SP-BADGE');
+ await chargerPhotoProfil();
+ synchroniserVisiteurs();
+ showPage('dashboard');
+}
+function afficherInscription(ouvrir){
+ const panel=document.getElementById('signupPanel');
+ panel.classList.toggle('hidden',!ouvrir);
+ document.getElementById('showSignupBtn').classList.toggle('hidden',ouvrir);
+ document.getElementById('loginMsg').innerText='';
+}
+async function inscriptionAgent(){
+ const nom=document.getElementById('signupName').value.trim();
+ const email=document.getElementById('signupEmail').value.trim().toLowerCase();
+ const password=document.getElementById('signupPassword').value;
+ const confirmation=document.getElementById('signupPassword2').value;
+ const msg=document.getElementById('loginMsg');
+ const btn=document.getElementById('signupBtn');
+ if(!nom||!email||!password||!confirmation){msg.innerText='Remplis tous les champs.';return;}
+ if(password.length<8){msg.innerText='Le mot de passe doit contenir au moins 8 caractères.';return;}
+ if(password!==confirmation){msg.innerText='Les deux mots de passe ne correspondent pas.';return;}
+ btn.disabled=true;btn.textContent='Création du compte…';msg.innerText='';
+ try{
+  const {data,error}=await sb.auth.signUp({
+   email,
+   password,
+   options:{data:{full_name:nom}}
+  });
+  if(error)throw error;
+  if(data.session){
+   await ouvrirSession(data.session);enregistrerOperation('Connexion','Session ouverte');
+   return;
+  }
+  msg.innerText='Compte créé. Consulte ta boîte e-mail pour confirmer ton adresse, puis connecte-toi.';
+  afficherInscription(false);
+ }catch(e){
+  msg.innerText='Création impossible : '+(e.message||'Vérifie les informations saisies.');
+ }finally{
+  btn.disabled=false;btn.textContent='Créer mon compte';
+ }
+}
+async function login(){
+ const email=document.getElementById('email').value.trim();
+ const password=document.getElementById('mdp').value;
+ const msg=document.getElementById('loginMsg');
+ const btn=document.getElementById('loginBtn');
+ if(!email||!password){msg.innerText='Saisis ton adresse e-mail et ton mot de passe.';return;}
+ btn.disabled=true;btn.textContent='Connexion…';msg.innerText='';
+ try{
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error)throw error;
+  await ouvrirSession(data.session);enregistrerOperation('Connexion','Session ouverte');
+ }catch(e){msg.innerText='Connexion impossible : '+(e.message||'Vérifie tes identifiants et ton rôle.');}
+ finally{btn.disabled=false;btn.textContent='Se connecter à SP-BADGE →';}
+}
+async function logout(){
+ if(!confirm('Se déconnecter ?'))return;
+ if(canalVisiteurs){await sb.removeChannel(canalVisiteurs);canalVisiteurs=null;}
+ await sb.auth.signOut();
+ visiteurs=[];corbeille=[];roleCourant='';utilisateurCourant=null;
+ document.querySelector('[data-page="corbeille"]').classList.add('hidden');
+  document.querySelector('[data-page="administration"]').classList.add('hidden');
+ document.getElementById('userAvatar').src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42'%3E%3Ctext x='21' y='28' font-size='22' text-anchor='middle'%3E%F0%9F%91%A4%3C/text%3E%3C/svg%3E";
+ document.getElementById('appPage').classList.add('hidden');
+ document.getElementById('loginPage').classList.remove('hidden');
+ document.getElementById('mdp').value='';
+ document.getElementById('loginMsg').innerText='Session fermée.';
+}
+async function restaurerSession(){
+ const {data,error}=await sb.auth.getSession();
+ if(error||!data.session)return;
+ try{await ouvrirSession(data.session);enregistrerOperation('Connexion','Session ouverte');}
+ catch(e){document.getElementById('loginMsg').innerText=e.message||'Session expirée. Reconnecte-toi.';}
+}
+function badgeLibre(){const pris=visiteurs.filter(v=>v.statut==='Présent').map(v=>v.badge);let i=1;while(pris.includes(String(i).padStart(2,'0'))&&i<=20)i++;return i<=20?String(i).padStart(2,'0'):'';}
+
+async function addVisiteur(e){
+ e.preventDefault();const h=horodatage();const badge=document.getElementById('v_badge').value||badgeLibre();
+ if(!badge){alert('Les 20 badges sont déjà attribués.');return;}
+ const v={
+  nom:document.getElementById('v_nom').value.trim(),
+  prenom:document.getElementById('v_prenom').value.trim(),
+  piece:document.getElementById('v_piece').value,
+  numero_piece:document.getElementById('v_num').value.trim(),
+  telephone:document.getElementById('v_tel').value.trim(),
+  motif:document.getElementById('v_motif').value,
+  personne_visitee:document.getElementById('v_rencontre').value.trim(),
+  rencontre:document.getElementById('v_rencontre').value.trim(),
+  service:document.getElementById('v_service').value,
+  heure_entree:document.getElementById('v_entree').value||h.heure,
+  date_visite:new Date().toISOString(),
+  badge,statut:'Présent',agent:roleCourant,note:document.getElementById('v_note').value.trim(),badge_rendu:null
+ };
+ const {error}=await sb.from('visiteurs').insert(v);
+ if(error){alert('Erreur Supabase : '+error.message);return;}
+ await chargerVisiteurs();enregistrerOperation('Nouveau visiteur',v.prenom+' '+v.nom+' • badge '+badge);notifier('SP-BADGE — Nouvelle visite',v.prenom+' '+v.nom+' • badge '+badge);showPage('presents');alert('✅ Visiteur enregistré dans la base en ligne.'); 
+}
+async function sortir(idx){
+ const v=visiteurs[idx];if(!v||!confirm('Enregistrer la sortie de '+v.prenom+' '+v.nom+' ? Badge n° '+v.badge+' rendu ?'))return;
+ const {error}=await sb.from('visiteurs').update({statut:'Sorti',heure_sortie:new Date().toISOString(),badge_rendu:'Oui'}).eq('id',v.id);
+ if(error){alert('Erreur : '+error.message);return;}enregistrerOperation('Sortie visiteur',v.prenom+' '+v.nom+' • badge '+v.badge);notifier('SP-BADGE — Sortie enregistrée',v.prenom+' '+v.nom);await chargerVisiteurs();showPage('presents');
+}
+async function supprimer(idx){
+ if(roleCourant!=='admin'){alert('Action réservée à l’administrateur.');return;}
+ const v=visiteurs[idx];
+ if(!v||!confirm('Déplacer cette fiche visiteur dans la corbeille ?'))return;
+ const {error}=await sb.from('visiteurs').update({
+  supprime:true,
+  supprime_le:new Date().toISOString(),
+  supprime_par:utilisateurCourant?.id||null
+ }).eq('id',v.id);
+ if(error){alert('Impossible de déplacer cette fiche : '+error.message);return;}
+ enregistrerOperation('Fiche déplacée dans la corbeille',(v.prenom||'')+' '+(v.nom||''));await chargerVisiteurs();showPage('historique');
+}
+async function restaurerCorbeille(idx){
+ if(roleCourant!=='admin'){alert('Action réservée à l’administrateur.');return;}
+ const v=corbeille[idx];
+ if(!v)return;
+ const {error}=await sb.from('visiteurs').update({
+  supprime:false,supprime_le:null,supprime_par:null
+ }).eq('id',v.id);
+ if(error){alert('Impossible de restaurer cette fiche : '+error.message);return;}
+ enregistrerOperation('Fiche restaurée',(v.prenom||'')+' '+(v.nom||''));await chargerVisiteurs();showPage('corbeille');
+}
+async function supprimerDefinitivement(idx){
+ if(roleCourant!=='admin'){alert('Action réservée à l’administrateur.');return;}
+ const v=corbeille[idx];
+ if(!v||!confirm('Supprimer définitivement la fiche de '+(v.prenom||'')+' '+(v.nom||'')+' ? Cette action est irréversible.'))return;
+ const {error}=await sb.from('visiteurs').delete().eq('id',v.id);
+ if(error){alert('Suppression définitive impossible : '+error.message);return;}
+ enregistrerOperation('Suppression définitive',(v.prenom||'')+' '+(v.nom||''));await chargerVisiteurs();showPage('corbeille');
+}
+async function viderCorbeille(){
+ if(roleCourant!=='admin'){alert('Action réservée à l’administrateur.');return;}
+ if(!corbeille.length){alert('La corbeille est déjà vide.');return;}
+ if(!confirm('Vider définitivement toute la corbeille ? Cette action est irréversible.'))return;
+ const {error}=await sb.from('visiteurs').delete().eq('supprime',true);
+ if(error){alert('Impossible de vider la corbeille : '+error.message);return;}
+ enregistrerOperation('Corbeille vidée','Suppression définitive de toutes les fiches de la corbeille');await chargerVisiteurs();showPage('corbeille');
+}
+function carteVisiteur(v,idx){return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start;flex-wrap:wrap"><div><b style="font-size:17px">${v.prenom||''} ${v.nom||''}</b> <span class="badge">🪪 Badge n° ${v.badge||'—'}</span> <span class="badge ${v.statut==='Présent'?'badge-in':'badge-out'}">${v.statut==='Présent'?'🟢 Présent':'🔴 Sorti'}</span><br><span class="small">🪪 ${v.piece||'—'} : ${v.numeroPiece||'—'} • 📞 ${v.telephone||'—'}</span><br><span class="small">🎯 Motif : ${v.motif||'—'} • 👤 À rencontrer : ${v.rencontre||'—'} • 🏛️ ${v.service||'—'}</span><br><span class="small">🕐 Entrée : ${v.date||'—'} à ${v.heureEntree||'—'} ${v.heureSortie?'• Sortie : '+v.heureSortie:''} • Agent : ${v.agent||''}</span>${v.note?`<p class="small">📝 ${v.note}</p>`:''}</div><div style="display:flex;flex-direction:column;gap:6px">${v.statut==='Présent'?`<button class="green" onclick="sortir(${idx})">✅ Sortie + badge rendu</button>`:''}<button class="gold" onclick="imprimerBadge(${idx})">🖨️ Imprimer badge</button><button class="light" onclick="afficherQrVisiteur(${idx})">▦ QR Code</button>${roleCourant==='admin'?`<button class="red" onclick="supprimer(${idx})">🗑️ Supprimer</button>`:''}</div></div></div>`;}
+function imprimerBadge(idx){const v=visiteurs[idx];const w=window.open('','_blank');if(!w){alert('Autorise les fenêtres pop-up pour imprimer.');return;}w.document.write(`<html><head><meta charset="utf-8"><title>Badge ${v.badge}</title><style>body{font-family:Arial;text-align:center;padding:20px}.b{border:3px solid #3E2314;border-radius:18px;padding:22px;max-width:340px;margin:auto}.n{font-size:44px;font-weight:900;color:#3E2314}</style></head><body><div class="b"><div style="font-size:40px">🪪</div><h2>SP-BADGE</h2><p>SÉCURITÉ PÉNITENTIAIRE<br>Commandement en Chef</p><div class="n">BADGE N° ${v.badge}</div><h3>${v.prenom} ${v.nom}</h3><p>Motif : ${v.motif}<br>À rencontrer : ${v.rencontre||''}<br>Service : ${v.service||''}<br>Entrée : ${v.date} à ${v.heureEntree}</p><p style="font-size:12px">Badge à rendre à la sortie. Ce badge est personnel et incessible.</p></div><script>window.print()<\/script></body></html>`);w.document.close();enregistrerOperation('Impression de badge','Badge '+v.badge+' • '+v.prenom+' '+v.nom);}
+function lignesVisiteurs(liste){return `<table><tr><th>Badge</th><th>Visiteur</th><th>Pièce</th><th>Téléphone</th><th>Motif</th><th>Personne</th><th>Service</th><th>Entrée</th><th>Sortie</th><th>Statut</th></tr>${liste.map(v=>`<tr><td>${v.badge||''}</td><td>${v.prenom||''} ${v.nom||''}</td><td>${v.piece||''} ${v.numeroPiece||''}</td><td>${v.telephone||'—'}</td><td>${v.motif||''}</td><td>${v.rencontre||'—'}</td><td>${v.service||''}</td><td>${v.date||''} ${v.heureEntree||''}</td><td>${v.heureSortie||'—'}</td><td>${v.statut||''}</td></tr>`).join('')}</table><p><b>Total : ${liste.length}</b></p>`;}
+function ouvrirImpression(titre,corps){const h=horodatage();const w=window.open('','_blank');if(!w){alert('Autorise les fenêtres pop-up pour imprimer.');return;}w.document.write(`<html><head><meta charset="utf-8"><title>${titre}</title><style>@page{size:${IMPRIMANTE.format};margin:15mm}body{font-family:Arial;color:#222;padding:10px}h2{margin:0}.entete{border-bottom:3px solid #D4AF37;padding-bottom:10px;margin-bottom:14px;text-align:center}.entete p{margin:4px 0;color:#555;font-size:13px}table{width:100%;border-collapse:collapse;font-size:12px}th{background:#3E2314;color:#fff;padding:8px;text-align:left}td{padding:8px;border-bottom:1px solid #DDD}.sign{margin-top:40px;display:flex;justify-content:space-between;font-size:13px}.sign div{border-top:1px solid #333;padding-top:6px;width:45%;text-align:center}</style></head><body><div class="entete"><h2>SP-BADGE</h2><p>${IMPRIMANTE.entete}</p><p><b>${titre}</b> — Édité le ${h.date} à ${h.heure}</p></div>${corps}<div class="sign"><div>Agent du Service Badge<br><br>Signature</div><div>Commandement en Chef<br><br>Visa</div></div><script>window.print()<\/script></body></html>`);w.document.close();}
+function imprimerPresents(){ouvrirImpression('Liste des visiteurs présents',lignesVisiteurs(visiteurs.filter(v=>v.statut==='Présent')));}
+function imprimerHistorique(){ouvrirImpression('Historique des visites',lignesVisiteurs(visiteurs));}
+function imprimerBadges(){const presents=visiteurs.filter(v=>v.statut==='Présent');const corps=`<table><tr><th>Badge</th><th>État</th><th>Visiteur</th><th>Chez</th><th>Entrée</th></tr>${Array.from({length:20},(_,i)=>{const n=String(i+1).padStart(2,'0');const v=presents.find(x=>x.badge===n);return `<tr><td>${n}</td><td>${v?'Sorti':'Libre'}</td><td>${v?v.prenom+' '+v.nom:'—'}</td><td>${v?(v.rencontre||'—'):'—'}</td><td>${v?v.date+' '+v.heureEntree:'—'}</td></tr>`}).join('')}</table>`;ouvrirImpression('État des badges',corps);}
+function sauverImprimante(e){e.preventDefault();IMPRIMANTE={nom:document.getElementById('imp_nom').value.trim(),format:document.getElementById('imp_format').value,entete:document.getElementById('imp_entete').value.trim()};localStorage.setItem('spbadge_imprimante',JSON.stringify(IMPRIMANTE));enregistrerOperation('Configuration imprimante','Format '+IMPRIMANTE.format);alert('Imprimante enregistrée.');showPage('imprimante');}
+function filtrerHist(q){q=(q??document.getElementById('rech2')?.value??'').toLowerCase();const statut=document.getElementById('filtreStatut')?.value||'';const service=document.getElementById('filtreService')?.value||'';const date=document.getElementById('filtreDate')?.value||'';const liste=visiteurs.filter(v=>{const texte=[v.nom,v.prenom,v.badge,v.numeroPiece,v.telephone,v.rencontre,v.motif,v.service,v.date,v.agent].join(' ').toLowerCase();const dateOk=!date||v.date===new Date(date+'T12:00:00').toLocaleDateString('fr-FR');return texte.includes(q)&&(!statut||v.statut===statut)&&(!service||v.service===service)&&dateOk;});document.getElementById('listeHist').innerHTML=liste.length?liste.map(v=>carteVisiteur(v,visiteurs.indexOf(v))).join(''):'<p>Aucune visite trouvée avec ces critères.</p>';}
+
+function showPage(p){
+ document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('active',a.dataset.page===p));
+ const c=document.getElementById('content');const presents=visiteurs.filter(v=>v.statut==='Présent');const ajd=visiteurs.filter(v=>v.date===aujourd());
+ if(p==='dashboard'){c.innerHTML=`<div class="card"><h2>📊 Tableau de bord — Service Badge</h2><p class="small">Commandement en Chef de la Sécurité Pénitentiaire • Aujourd'hui : <b>${aujourd()}</b></p><div class="grid"><div class="stat"><b>${presents.length}</b>Visiteurs présents</div><div class="stat"><b>${ajd.length}</b>Visites aujourd'hui</div><div class="stat"><b>${visiteurs.length}</b>Total enregistrés</div><div class="stat"><b>${presents.length}</b>Badges sortis</div></div><div class="toolbar"><button onclick="exporterExcel()">📊 Export Excel</button><button class="gold" onclick="exporterSauvegarde()">💾 Sauvegarde</button></div></div>`+(presents.length?`<div class="card"><h3>🟢 En ce moment dans les locaux</h3>${presents.map(v=>`<p><b>🪪 ${v.badge}</b> — ${v.prenom} ${v.nom} • ${v.motif} • chez ${v.rencontre||'—'} • entré à ${v.heureEntree}</p>`).join('')}</div>`:`<div class="card"><p>🟢 Aucun visiteur présent en ce moment.</p><button onclick="showPage('enregistrer')">➕ Enregistrer le premier visiteur</button></div>`);}
+ if(p==='enregistrer'){const h=horodatage();c.innerHTML=`<div class="card"><h2>➕ Enregistrer un visiteur</h2><p class="small">Le visiteur sera enregistré dans la base en ligne.</p><form onsubmit="addVisiteur(event)"><div class="row"><div><label class="small">Nom *</label><input id="v_nom" required placeholder="Nom"></div><div><label class="small">Prénom *</label><input id="v_prenom" required placeholder="Prénom"></div></div><div class="row"><div><label class="small">Pièce d'identité</label><select id="v_piece"><option>Carte d'identité (CNI)</option><option>Passeport</option><option>Permis de conduire</option><option>Carte professionnelle</option><option>Autre pièce</option></select></div><div><label class="small">N° de la pièce</label><input id="v_num" placeholder="N° pièce"></div><div><label class="small">Téléphone</label><input id="v_tel" placeholder="Téléphone"></div></div><div class="row"><div><label class="small">Motif de visite</label><select id="v_motif"><option>Visite officielle</option><option>Rendez-vous</option><option>Dépôt de dossier</option><option>Livraison</option><option>Maintenance / Travaux</option><option>Autre motif</option></select></div><div><label class="small">Personne à rencontrer</label><input id="v_rencontre" placeholder="Nom de la personne"></div></div><div class="row"><div><label class="small">Service visité</label><select id="v_service"><option>Commandement en Chef</option><option>Direction Générale</option><option>Direction de la Sécurité et de la Surveillance</option><option>Direction de l'Administration et des Finances</option><option>Direction du Greffe et des Affaires Judiciaires</option><option>Direction de la Santé et du Social</option><option>Service du Greffe</option><option>Service de la Surveillance</option><option>Autre service</option></select></div><div><label class="small">Heure d'entrée</label><input id="v_entree" value="${h.heure}"></div><div><label class="small">Badge attribué</label><input id="v_badge" value="${badgeLibre()}"></div></div><label class="small">Note / Observation</label><textarea id="v_note" placeholder="Observation"></textarea><button style="width:100%">✅ Enregistrer + Remettre le badge</button></form></div>`;}
+ if(p==='presents'){c.innerHTML=`<div class="card"><h2>🟢 Visiteurs présents (${presents.length})</h2><input id="rech" placeholder="🔍 Rechercher nom, badge, personne rencontrée..." oninput="filtrerPresents(this.value)"></div><div id="listePresents">${presents.map(v=>carteVisiteur(v,visiteurs.indexOf(v))).join('')||'<div class="card">Aucun visiteur présent.</div>'}</div>`;}
+ if(p==='historique'){c.innerHTML=`<div class="card"><h2>📋 Historique des visites (${visiteurs.length})</h2><input id="rech2" placeholder="🔍 Nom, prénom, badge, pièce, téléphone, motif, agent…" oninput="filtrerHist()"><div class="row"><div><label class="small">Statut</label><select id="filtreStatut" onchange="filtrerHist()"><option value="">Tous les statuts</option><option>Présent</option><option>Sorti</option></select></div><div><label class="small">Service</label><select id="filtreService" onchange="filtrerHist()"><option value="">Tous les services</option>${[...new Set(visiteurs.map(v=>v.service).filter(Boolean))].sort().map(x=>`<option value="${echapper(x)}">${echapper(x)}</option>`).join('')}</select></div><div><label class="small">Date de visite</label><input id="filtreDate" type="date" onchange="filtrerHist()"></div></div><button class="light" onclick="document.getElementById('rech2').value='';document.getElementById('filtreStatut').value='';document.getElementById('filtreService').value='';document.getElementById('filtreDate').value='';filtrerHist()">↺ Réinitialiser les filtres</button><div id="listeHist"></div></div>`;filtrerHist('');}
+ if(p==='corbeille'){
+  if(roleCourant!=='admin'){c.innerHTML='<div class="card"><h2>Accès refusé</h2><p>Cette rubrique est réservée à l’administrateur.</p></div>';return;}
+  const elements=corbeille.map((v,i)=>{
+   const dateSupp=v.supprime_le?new Date(v.supprime_le).toLocaleString('fr-FR'):'Date inconnue';
+   return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start;flex-wrap:wrap"><div><b style="font-size:17px">${v.prenom||''} ${v.nom||''}</b> <span class="badge">🪪 Badge n° ${v.badge||'—'}</span><br><span class="small">Pièce : ${v.piece||'—'} • N° : ${v.numeroPiece||'—'} • Téléphone : ${v.telephone||'—'}</span><br><span class="small">Motif : ${v.motif||'—'} • À rencontrer : ${v.rencontre||'—'} • Service : ${v.service||'—'}</span><br><span class="small">Visite : ${v.date||'—'} à ${v.heureEntree||'—'} • Supprimé le : ${dateSupp}</span></div><div style="display:flex;flex-direction:column;gap:6px"><button class="green" onclick="restaurerCorbeille(${i})">↩️ Restaurer</button><button class="red" onclick="supprimerDefinitivement(${i})">❌ Supprimer définitivement</button></div></div></div>`;
+  }).join('');
+  c.innerHTML=`<div class="card"><h2>🗑️ Corbeille (${corbeille.length})</h2><p class="small">Les fiches déplacées ici ne figurent plus dans l’historique normal. Seul l’administrateur peut les restaurer ou les supprimer définitivement.</p><button class="red" onclick="viderCorbeille()" ${corbeille.length?'':'disabled'}>🧹 Vider toute la corbeille</button></div>${elements||'<div class="card">La corbeille est vide.</div>'}`;
+ }
+ if(p==='badges'){let cases='';for(let i=1;i<=20;i++){const n=String(i).padStart(2,'0');const v=presents.find(x=>x.badge===n);cases+=`<div style="border-radius:12px;padding:12px;text-align:center;border:2px solid ${v?'#25D366':'#D9C9B0'};background:${v?'#E8F5E9':'#FFFBF2'}"><b>🪪 ${n}</b><br><span class="small">${v?v.prenom+' '+v.nom+'<br>chez '+(v.rencontre||'—'):'✅ Libre'}</span></div>`;}c.innerHTML=`<div class="card"><h2>🪪 État des badges</h2><p class="small"><b>${presents.length}</b> badge(s) sorti(s) sur 20 • <b>${20-presents.length}</b> libre(s).</p><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">${cases}</div><p><button class="gold" onclick="imprimerBadges()">🖨️ Imprimer l'état des badges</button></p></div>`;}
+ if(p==='imprimante'){c.innerHTML=`<div class="card"><h2>🖨️ Imprimante</h2><p class="small">Connecte l'imprimante dans les paramètres de ton téléphone, puis choisis-la dans la fenêtre d'impression.</p><form onsubmit="sauverImprimante(event)"><label class="small">Nom de l'imprimante</label><input id="imp_nom" value="${echapper(IMPRIMANTE.nom)}" placeholder="Nom de l'imprimante"><div class="row"><div><label class="small">Format papier</label><select id="imp_format"><option ${IMPRIMANTE.format==='A4'?'selected':''}>A4</option><option ${IMPRIMANTE.format==='A5'?'selected':''}>A5</option><option ${IMPRIMANTE.format==='Letter'?'selected':''}>Letter</option></select></div><div><label class="small">En-tête</label><input id="imp_entete" value="${echapper(IMPRIMANTE.entete)}"></div></div><button>💾 Enregistrer</button></form></div><div class="card"><h3>Documents à imprimer</h3><p><button onclick="imprimerPresents()">Liste des présents</button> <button onclick="imprimerHistorique()">Historique</button> <button onclick="imprimerBadges()">État des badges</button></p></div>`;}
+}
+function filtrerPresents(q){q=(q||'').toLowerCase();const liste=visiteurs.filter(v=>v.statut==='Présent'&&([v.nom,v.prenom,v.badge,v.rencontre].join(' ').toLowerCase().includes(q)));document.getElementById('listePresents').innerHTML=liste.map(v=>carteVisiteur(v,visiteurs.indexOf(v))).join('')||'<div class="card">Aucun visiteur trouvé.</div>';}
+document.addEventListener('DOMContentLoaded',restaurerSession);
+</script>
+</body>
+</html>
